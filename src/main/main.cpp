@@ -1,12 +1,12 @@
 #include "main.h"
 
-#include <math.h>
 #include <iostream>
 using std::cout;
 using std::endl;
 #include <fstream>
 #include <string>
 #include <pthread.h>
+#include <math.h>
 
 #ifdef UNIT_TESTS
 #define MAIN not_main
@@ -23,7 +23,7 @@ void calculate_mandelbrot(Point begin, Point end, int px_height, ProcItem* paren
     ProcItem* currentItem = new ProcItem();
     currentItem->begin = begin;
     currentItem->end = end;
-    currentItem->px_height = px_height;
+    currentItem->screen_position.height = px_height;
     // allocate the colors
     Color* colors = (Color*) malloc(sizeof(struct Color) * px_height * px_height);
 
@@ -58,15 +58,46 @@ int* divide_chuncks(int size, int div) {
     return chuncks;
 }
 
+PixelRect* divide_screen_in_px_chuncks(ScreenSize size, int div, int* length) {
+    int* height_chunck = divide_chuncks(size.height, div);
+    int* width_chunck = divide_chuncks(size.width, div);
+    *length = div * div;
+    PixelRect* blocks = (PixelRect*) malloc(sizeof(struct PixelRect) * div * div);
+    int blocks_curr = 0;
+    int curr_px_h_pos = 0;
+    for (int i=0; i< div; i++) {
+        curr_px_h_pos += height_chunck[i];
+        int curr_px_w_pos = 0;
+        for (int j=0; j<div; j++) {
+            curr_px_w_pos += width_chunck[j];
+            PixelRect rect;
+            rect.height = height_chunck[i];
+            rect.width = width_chunck[j];
+            rect.x_pos = curr_px_w_pos;
+            rect.y_pos = curr_px_h_pos;
+            blocks[blocks_curr++] = rect;
+        }
+    }
+    
+    free(height_chunck);
+    free(width_chunck);
+    
+    return blocks;
+}
+
+
 int MAIN(int argc, char** argv) {
     ScreenSize size;
     size.width = 1000;
     size.height = 1000;
     int div = 2;
-
-    float aux;
-
-
+    int squares = 0;
+    PixelRect* chuncks = divide_screen_in_px_chuncks(size, div, &squares);
+    
+    chuncks;
+    
+    
+    
     pthread_t thread;
 
     int iret1 = pthread_create(&thread, NULL, master_producer, (void*) &size);

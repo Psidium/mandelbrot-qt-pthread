@@ -30,3 +30,25 @@ TEST(ChunckDivider, BigDivisions) {
     ASSERT_EQ(chuncks[5], 143);
     ASSERT_EQ(chuncks[6], 143);
 }
+
+TEST(PxChunckDivider, GetPixelRegions) {
+    ScreenSize size;
+    size.width = 1000;
+    size.height = 1000;
+    int len = 0;
+    PixelRect* chuncks = divide_screen_in_px_chuncks(size, 2, &len);
+    
+    PixelRect first = { 500, 500, 500, 500 };
+    ASSERT_TRUE(0 == std::memcmp( &(chuncks[0]), &first, sizeof(first)));
+    
+    PixelRect second = { 500, 500, 1000, 500 };
+    ASSERT_TRUE(0 == std::memcmp( &(chuncks[1]), &second, sizeof(second)));
+    
+    PixelRect third = { 500, 500, 500, 1000 };
+    ASSERT_TRUE(0 == std::memcmp( &(chuncks[2]), &third, sizeof(third)));
+    
+    PixelRect fourth = { 500, 500, 1000, 1000 };
+    ASSERT_TRUE(0 == std::memcmp( &(chuncks[3]), &fourth, sizeof(fourth)));
+}
+
+
