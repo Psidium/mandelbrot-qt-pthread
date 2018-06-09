@@ -49,34 +49,29 @@ target_link_libraries(example PUBLIC
 ## testing ####################################################################
 ###############################################################################
 
+
 # This is for our testing framework,
 # we don't add REQUIRED because it's just for testing.
 # People who might want to build the project to use it should not be required
 # to install testing dependencies.
-find_package(GTest)
 
-if(GTEST_FOUND)
-  add_executable(unit_tests ${sources_test} ${sources})
+add_subdirectory( vendor/googletest/googletest )
 
-  # This define is added to prevent collision with the main.
-  # It might be better solved by not adding the source with the main to the
-  # testing target.
-  target_compile_definitions(unit_tests PUBLIC UNIT_TESTS)
+add_executable(unit_tests ${sources_test} ${sources})
 
-  # This allows us to use the executable as a link library, and inherit all 
-  # linker options and library dependencies from it, by simply adding it as dependency.
-  set_target_properties(example PROPERTIES ENABLE_EXPORTS on)
+# This define is added to prevent collision with the main.
+# It might be better solved by not adding the source with the main to the
+# testing target.
+target_compile_definitions(unit_tests PUBLIC UNIT_TESTS)
 
-  target_link_libraries(unit_tests PUBLIC
-    ${GTEST_BOTH_LIBRARIES}
-    example
-  )
+# This allows us to use the executable as a link library, and inherit all 
+# linker options and library dependencies from it, by simply adding it as dependency.
+set_target_properties(example PROPERTIES ENABLE_EXPORTS on)
 
-  target_include_directories(unit_tests PUBLIC
-    ${GTEST_INCLUDE_DIRS} # doesn't do anything on linux
-  )
-  
-endif()
+target_link_libraries(unit_tests PUBLIC
+gtest_main
+example
+)
 
 ###############################################################################
 ## packaging ##################################################################
