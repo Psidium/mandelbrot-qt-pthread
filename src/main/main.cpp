@@ -1,12 +1,19 @@
 #include "main.h"
 
+#include <QApplication>
+#include <QLabel>
+#include <QSlider>
+#include <QVBoxLayout>
+
 #include <iostream>
 using std::cout;
 using std::endl;
 #include <fstream>
 #include <string>
+#include <unistd.h>
 #include <pthread.h>
 #include <math.h>
+
 
 #ifdef UNIT_TESTS
 #define MAIN not_main
@@ -16,6 +23,18 @@ using std::endl;
 
 
 void *master_producer(void* arg) {
+    Color* colors = (Color*) arg;
+    printf("GOT INSIDE THEM THREAD");
+    while(1) {
+        sleep(1);
+        for (int i=0; i< 1000 * 1000; i++) {
+            uint8_t aux = colors[i].b;
+            colors[i].b = colors[i].r;
+            colors[i].r = colors[i].g;
+            colors[i].g = aux;
+        }
+        printf("CHANGED COLORS!");
+    }
 }
 
 
@@ -92,20 +111,44 @@ int MAIN(int argc, char** argv) {
     size.height = 1000;
     int div = 2;
     int squares = 0;
-    PixelRect* chuncks = divide_screen_in_px_chuncks(size, div, &squares);
+
+    QApplication app(argc, argv);
     
-    chuncks;
-    
-    
+    QWidget window;
+    window.setMinimumSize(200, 200);
+
+    QVBoxLayout layout;
+
+
+    QSlider* slider = new QSlider();
+    slider->setOrientation(Qt::Horizontal);
+    slider->setRange(0, 1000);
+    slider->setValue(0);
+    //slider->setGeometry(10, 10, 10, 300);
+    layout.addWidget(slider);
+    Color* colors = (Color*) malloc(sizeof(struct Color) * size.width * size.height);
+    for (int i=0; i< size.width * size.height; i++) {
+        colors[i].a = 255;
+        colors[i].r = 255;
+    }
+    QImage* image = new QImage( (uint8_t*) colors, size.width, size.height, QImage::Format_ARGB32 );
+    QLabel* label = new QLabel();
+    label->setPixmap(QPixmap::fromImage(*image));
+    layout.addWidget(label);
+    window.setLayout(&layout);
+    window.show();
     
     pthread_t thread;
-
-    int iret1 = pthread_create(&thread, NULL, master_producer, (void*) &size);
+    
+    int iret1 = pthread_create(&thread, NULL, master_producer, (void*) colors);
     if (iret1) {
         fprintf(stderr,"Error - pthread_create() return code: %d\n",iret1);
         exit(EXIT_FAILURE);
     }
 
+//   / QObject::connect(slider, SIGNAL (valueChanged(int)), NULL, SLOT (setValue(int)));
+    
+    return app.exec();
     return EXIT_SUCCESS;
 }
 

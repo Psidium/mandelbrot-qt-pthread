@@ -1,12 +1,15 @@
 #pragma once
 
+#include <cstdint>
+
 struct Point {
     double x;
     double y;
 };
 
 struct Color {
-    float r,g,b;
+    // this order is everything!
+    uint8_t b,g,r,a;
 };
 
 struct PixelRect {

@@ -36,13 +36,25 @@ file(COPY ${data} DESTINATION resources)
 ## dependencies ###############################################################
 ###############################################################################
 
+# Find includes in corresponding build directories
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
 # This defines the variables Boost_LIBRARIES that containts all library names
 # that we need to link into the program.
 find_package(Boost 1.36.0 COMPONENTS filesystem system REQUIRED)
+find_package(Qt5 COMPONENTS Core Gui Widgets REQUIRED)
+set(CMAKE_AUTOMOC ON)
+
+include_directories(${Qt5_INCLUDES})
+add_definitions(${Qt5_DEFINITIONS})
+set(CMAKE_CXX_FLAGS "${Qt5_EXECUTABLE_COMPILE_FLAGS}")
 
 target_link_libraries(example PUBLIC
   ${Boost_LIBRARIES}
-  # here you can add any library dependencies
+  Qt5::Core
+  Qt5::Widgets
+  Qt5::Gui
+  pthread
 )
 
 ###############################################################################
