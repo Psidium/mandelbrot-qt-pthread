@@ -11,6 +11,7 @@ project(example_project)            # this sets the project name
 file(GLOB_RECURSE sources      src/main/*.cpp src/main/*.h)
 file(GLOB_RECURSE sources_test src/test/*.cpp)
 file(GLOB_RECURSE data resources/*)
+file(GLOB_RECURSE mandelbrot_func vendor/mandelbrot/mandelbrot.*)
 # You can use set(sources src/main.cpp) etc if you don't want to
 # use globbing to find files automatically.
 
@@ -20,13 +21,14 @@ file(GLOB_RECURSE data resources/*)
 
 # The data is just added to the executable, because in some IDEs (QtCreator) 
 # files are invisible when they are not explicitly part of the project.
-add_executable(example ${sources} ${data})
+add_executable(parallel_mandelbrot ${sources} ${mandelbrot_func} ${data} )
 
-# Just for example add some compiler flags.
-target_compile_options(example PUBLIC -std=c++1y -Wall -Wfloat-conversion)
+# Just for parallel_mandelbrot add some compiler flags.
+set(CMAKE_CXX_FLAGS -std=c++1y -Wall -Wfloat-conversion)
+target_compile_options(parallel_mandelbrot PUBLIC )
 
 # This allows to include files relative to the root of the src directory with a <> pair
-target_include_directories(example PUBLIC src/main)
+target_include_directories(parallel_mandelbrot PUBLIC src/main vendor/mandelbrot)
 
 # This copies all resource files in the build directory.
 # We need this, because we want to work with paths relative to the executable.
@@ -45,11 +47,14 @@ find_package(Boost 1.36.0 COMPONENTS filesystem system REQUIRED)
 find_package(Qt5 COMPONENTS Core Gui Widgets REQUIRED)
 set(CMAKE_AUTOMOC ON)
 
+QT5_WRAP_CPP(parallel_mandelbrot_SRC src/main/QtObjects.h )
+target_sources(parallel_mandelbrot PUBLIC ${parallel_mandelbrot_SRC})
+
 include_directories(${Qt5_INCLUDES})
 add_definitions(${Qt5_DEFINITIONS})
 set(CMAKE_CXX_FLAGS "${Qt5_EXECUTABLE_COMPILE_FLAGS}")
 
-target_link_libraries(example PUBLIC
+target_link_libraries(parallel_mandelbrot PUBLIC
   ${Boost_LIBRARIES}
   Qt5::Core
   Qt5::Widgets
@@ -78,11 +83,11 @@ target_compile_definitions(unit_tests PUBLIC UNIT_TESTS)
 
 # This allows us to use the executable as a link library, and inherit all 
 # linker options and library dependencies from it, by simply adding it as dependency.
-set_target_properties(example PROPERTIES ENABLE_EXPORTS on)
+set_target_properties(parallel_mandelbrot PROPERTIES ENABLE_EXPORTS on)
 
 target_link_libraries(unit_tests PUBLIC
 gtest_main
-example
+parallel_mandelbrot
 )
 
 ###############################################################################
@@ -91,7 +96,7 @@ example
 
 # All install commands get the same destination. this allows us to use paths
 # relative to the executable.
-install(TARGETS example DESTINATION example_destination)
+install(TARGETS parallel_mandelbrot DESTINATION example_destination)
 
 # This is basically a repeat of the file copy instruction that copies the
 # resources in the build directory, but here we tell cmake that we want it

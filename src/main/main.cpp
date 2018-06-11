@@ -1,9 +1,17 @@
 #include "main.h"
+#include "vendor/mandelbrot/mandelbrot.h"
+#include "QtObjects.h"
 
+#include <QObject>
 #include <QApplication>
 #include <QLabel>
 #include <QSlider>
 #include <QVBoxLayout>
+#include <QFormLayout>
+#include <QLineEdit>
+#include <QDoubleValidator>
+#include <QPainter>
+#include <QtDebug>
 
 #include <iostream>
 using std::cout;
@@ -13,6 +21,7 @@ using std::endl;
 #include <unistd.h>
 #include <pthread.h>
 #include <math.h>
+#include <functional>
 
 
 #ifdef UNIT_TESTS
@@ -22,19 +31,20 @@ using std::endl;
 #endif
 
 
+
 void *master_producer(void* arg) {
-    Color* colors = (Color*) arg;
-    printf("GOT INSIDE THEM THREAD");
-    while(1) {
-        sleep(1);
-        for (int i=0; i< 1000 * 1000; i++) {
-            uint8_t aux = colors[i].b;
-            colors[i].b = colors[i].r;
-            colors[i].r = colors[i].g;
-            colors[i].g = aux;
-        }
-        printf("CHANGED COLORS!");
-    }
+//    Color* colors = (Color*) arg;
+//    printf("GOT INSIDE THEM THREAD");
+//    while(1) {
+//        sleep(1);
+//        for (int i=0; i< 1000 * 1000; i++) {
+//            uint8_t aux = colors[i].b;
+//            colors[i].b = colors[i].r;
+//            colors[i].r = colors[i].g;
+//            colors[i].g = aux;
+//        }
+//        printf("CHANGED COLORS!");
+//    }
 }
 
 
@@ -119,22 +129,104 @@ int MAIN(int argc, char** argv) {
 
     QVBoxLayout layout;
 
+    QFormLayout formLayout;
+    
+    QLineEdit threads;
+    threads.setValidator( new QIntValidator(0, 32, &formLayout) );
+    formLayout.addRow(QObject::tr("&Threads:"), &threads);
+    threads.setText("4");
+    QLineEdit centerX;
+    centerX.setValidator( new QDoubleValidator(0, 100, 10, &formLayout) );
+    formLayout.addRow(QObject::tr("&Center X:"), &centerX);
+    centerX.setText("-0.743643135");
+    QLineEdit centerY;
+    centerY.setValidator( new QDoubleValidator(0, 100, 10, &formLayout) );
+    formLayout.addRow(QObject::tr("&Center Y:"), &centerY);
+    centerY.setText("0.131825963");
+    QLineEdit mandelW;
+    mandelW.setValidator( new QDoubleValidator(0, 100, 10, &formLayout) );
+    formLayout.addRow(QObject::tr("&Mandelbrot Width:"), &mandelW);
+    mandelW.setText("0.000014628");
+    QLineEdit mandelH;
+    mandelH.setValidator( new QDoubleValidator(0, 100, 10, &formLayout) );
+    formLayout.addRow(QObject::tr("&Mandelbrot Height:"), &mandelH);
+    mandelH.setText("0.000014628");
+    
+    QLineEdit maxIter;
+    maxIter.setValidator( new QIntValidator(0, 5000, &formLayout) );
+    formLayout.addRow(QObject::tr("&Maximum Iterations:"), &maxIter);
+    maxIter.setText("2048");
+    
+    QLineEdit radius;
+    radius.setValidator( new QDoubleValidator(0, 100, 2, &formLayout) );
+    formLayout.addRow(QObject::tr("&Mandelbrot Height:"), &radius);
+    radius.setText("2.0");
+    
+    layout.addLayout(&formLayout);
+    
+    
+    
+    MAND_COLOR ** color_scheme = (MAND_COLOR**) calloc(5, sizeof(MAND_COLOR*));
+    MAND_COLOR color1 = { 0x00, 0x22, 0xdd };
+    color_scheme[0] = &color1;
+    MAND_COLOR color2 = { 0xff, 0x88, 0x00 };
+    color_scheme[1] = &color2;
+    MAND_COLOR color3 = { 0xff, 0xff, 0x00 };
+    color_scheme[2] = &color3;
+    MAND_COLOR color4 = { 0xff, 0x00, 0x00 };
+    color_scheme[3] = &color4;
+    MAND_COLOR color5 = { 0xff, 0xff, 0xff };
+    color_scheme[4] = &color5;
+    // create mandelbrott
+    MANDELBROT man = {
+        size.width, // pw picture width
+        -0.743643135, 0.131825963, // center_x, center_y
+        0.000014628, 0.000014628, // w, h
+        2048, // i_max_iter
+        2.0, // radius
+        SET_MANDELBROT, // set
+        MAND_FALSE, 0.0, 0.0, // j, jr, ji julia fractal
+        NULL, //ec
+        // 02d/f80/ff0/f00/fff
+        color_scheme, // cs color scheme
+        5, // ncs number of color scheme
+        MAND_TRUE // nic normalized colors
+    };
 
-    QSlider* slider = new QSlider();
-    slider->setOrientation(Qt::Horizontal);
-    slider->setRange(0, 1000);
-    slider->setValue(0);
-    //slider->setGeometry(10, 10, 10, 300);
-    layout.addWidget(slider);
-    Color* colors = (Color*) malloc(sizeof(struct Color) * size.width * size.height);
-    for (int i=0; i< size.width * size.height; i++) {
-        colors[i].a = 255;
-        colors[i].r = 255;
-    }
+    Color* colors;
+    
+    auto dimentions_func = [&](int w, int h) mutable {
+        size.height = h;
+        size.width = w;
+        colors = (Color*) malloc(sizeof(struct Color) * size.width * size.height);
+    };
+    
+    auto dim_thunk = [](int w, int h, void* arg) {
+        (*static_cast<decltype(dimentions_func)*>(arg))(w, h);
+    };
+    
+    long iterator = 0;
+    auto colors_func = [&](int r, int g, int b) {
+        colors[iterator].r = r;
+        colors[iterator].g = g;
+        colors[iterator].b = b;
+        colors[iterator].a = 0xFF;
+        iterator++;
+    };
+    
+    auto colors_thunk = [](int r, int g, int b, void* arg) {
+        (*static_cast<decltype(colors_func)*>(arg))(r, g, b);
+    };
+    
+    int total;
+    MAND_COLOR **palette = make_palette(man.cs, man.ncs, &total, man.ec);
+    mandelbrot(&man, palette, total, dim_thunk, &dimentions_func, colors_thunk, &colors_func);
+    
     QImage* image = new QImage( (uint8_t*) colors, size.width, size.height, QImage::Format_ARGB32 );
-    QLabel* label = new QLabel();
-    label->setPixmap(QPixmap::fromImage(*image));
-    layout.addWidget(label);
+    ImageViewer view;
+    view.setImage(*image);
+    
+    layout.addWidget(&view);
     window.setLayout(&layout);
     window.show();
     
@@ -146,7 +238,7 @@ int MAIN(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
-//   / QObject::connect(slider, SIGNAL (valueChanged(int)), NULL, SLOT (setValue(int)));
+//  QObject::connect(slider, SIGNAL (valueChanged(int)), NULL, SLOT (setValue(int)));
     
     return app.exec();
     return EXIT_SUCCESS;
