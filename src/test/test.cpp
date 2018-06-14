@@ -52,3 +52,25 @@ TEST(PxChunckDivider, GetPixelRegions) {
 }
 
 
+TEST(MandelbrotDivider, DivideIn4) {
+    MANDELBROT man = {
+        500, // pw picture width
+        0.0, // center_x
+        0.0, // center_y
+        2.0, // w
+        2.0 // h
+    };
+    MANDELBROT** results = split_man(&man, 2);
+    ASSERT_EQ(results[0]->pw, 250);
+    ASSERT_EQ(results[0]->h, 1);
+    ASSERT_EQ(results[0]->w, 1);
+    ASSERT_EQ(results[0]->cx, -0.5);
+    ASSERT_EQ(results[0]->cy, -0.5);
+    
+    ASSERT_EQ(results[01]->pw, 250);
+    ASSERT_EQ(results[01]->h, 1);
+    ASSERT_EQ(results[01]->w, 1);
+    ASSERT_EQ(results[01]->cx, -0.5);
+    ASSERT_EQ(results[01]->cy, -0.5);
+}
+

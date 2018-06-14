@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include "vendor/mandelbrot/mandelbrot.h"
 
 struct Point {
     double x;
@@ -12,6 +13,11 @@ struct Color {
     uint8_t b,g,r,a;
 };
 
+struct ProducerItem {
+    MANDELBROT *man;
+    Color* colors;
+};
+
 struct PixelRect {
     int height;
     int width;
@@ -19,19 +25,22 @@ struct PixelRect {
     int y_pos;
 };
 
-struct ProcItem {
-    Point begin;
-    Point end;
-    PixelRect screen_position;
-    // colors' size is defined by screen_position.height * screen_position.width
-    Color* colors;
-    ProcItem* next_item;
-};
-
 struct ScreenSize {
     int width;
     int height;
 };
 
+struct ProcItem {
+    MANDELBROT *man;
+    Color* colors;
+    int color_len;
+    ScreenSize size;
+    ProcItem* next_item;
+    int generated_index;
+    int grid_pos_x;
+    int grid_pos_y;
+};
+
+MANDELBROT** split_man(MANDELBROT *man, int size);
 int* divide_chuncks(int size, int div);
 PixelRect* divide_screen_in_px_chuncks(ScreenSize size, int div, int* length);

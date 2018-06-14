@@ -74,7 +74,7 @@ target_link_libraries(parallel_mandelbrot PUBLIC
 
 add_subdirectory( vendor/googletest/googletest )
 
-add_executable(unit_tests ${sources_test} ${sources})
+add_executable(unit_tests ${sources_test} ${sources} ${mandelbrot_func})
 
 # This define is added to prevent collision with the main.
 # It might be better solved by not adding the source with the main to the

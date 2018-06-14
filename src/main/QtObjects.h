@@ -2,6 +2,7 @@
 #define QT_OBJECTS_H
 
 #include <QWidget>
+#include <QBasicTimer>
 
 class ImageViewer : public QWidget {
     Q_OBJECT
@@ -9,7 +10,7 @@ class ImageViewer : public QWidget {
     void paintEvent(QPaintEvent *);
 public:
     ImageViewer(QWidget * parent = nullptr);
-    Q_SLOT void setImage(const QImage & img); 
+    Q_SLOT void setImage(const QImage & img);
 };
 
 #endif // QT_OBJECTS_H
