@@ -122,6 +122,22 @@ void *master_producer(void* arg) {
 
 }
 
+void rotate90(Color *src, Color *dst, const int N, const int M) {
+    for(int i=0; i<N; i++) {
+        for(int j=1; j<=M; j++) {
+            dst[i * M + j] = src[(M-j) * N + i];
+        }
+    }
+}
+
+void rotate180(Color *src, Color *dst, const int N, const int M) {
+    Color* aux = (Color*) calloc(N*M,sizeof(Color));
+    rotate90(src, aux, N, M);
+    rotate90(aux,dst,N,M);
+    free(aux);
+}
+
+
 void *consumer(void* arg) {
     buffer_t *buffer = (buffer_t*)arg;
     while (1) {
@@ -165,9 +181,12 @@ void *consumer(void* arg) {
         mandelbrot(man, palette, total, dim_thunk, &dimentions_func, colors_thunk, &colors_func);
         assert(iterator == item->size.width * item->size.height);
         assert(item->size.width == item->size.height);
-        item->colors = colors;
-        item->color_len = iterator;
-        
+        item->colors = (Color*) calloc(item->size.width * item->size.height, sizeof(Color));
+        rotate180(colors, item->colors, item->size.width, item->size.height);
+        free(colors);
+//        item->colors = colors;
+//        item->color_len = iterator;
+        std::cout << "\n color eh " << colors;
         QImage* img = new QImage( (uint8_t*) item->colors, item->size.width, item->size.height, QImage::Format_ARGB32 );
         img->save(QString("mandelbrot_") + QString::fromStdString(std::to_string(item->grid_pos_x)) + "_" + QString::fromStdString(std::to_string(item->grid_pos_y)) + QString(".png"));
         pthread_mutex_lock(&buffer->mutex_assembler);
@@ -183,6 +202,7 @@ void *consumer(void* arg) {
         pthread_cond_broadcast(&buffer->can_assemble);
         pthread_mutex_unlock(&buffer->mutex_assembler);
     }
+    return NULL;
 }
 
 void *assembler(void* arg) {
@@ -196,17 +216,17 @@ void *assembler(void* arg) {
         ProcItem* item = buffer->work_item_done;
         buffer->work_item_done = buffer->work_item_done->next_item;
         item->next_item = NULL;
-        
+        std::cout << "\n color deveria " << item->colors;
+
         Color* color_from = item->colors;
         Color* curr_final_color = buffer->final_color;
         curr_final_color += item->grid_pos_x * item->size.width;
         curr_final_color += item->grid_pos_y * item->size.height * buffer->final_size.width;
         for (int i = 0;i < item->size.height; i++) {
-            memmove(curr_final_color, color_from, item->size.width);
+            memmove(curr_final_color, color_from, item->size.width * sizeof(Color));
             color_from += item->size.width;
             curr_final_color += buffer->final_size.width;
         }
-        assert(color_from - item->colors == item->color_len);
         total_bytes += item->color_len;
         std::cout << "\nAssembled bytes: " << total_bytes;
         
@@ -214,6 +234,7 @@ void *assembler(void* arg) {
         free(item);
         
         QImage* image = new QImage( (uint8_t*) buffer->final_color, buffer->final_size.width, buffer->final_size.height, QImage::Format_ARGB32 );
+   //     image->save(QString("mandelbrot_end.png"));
         buffer->imageViwer->setImage(*image);
         pthread_mutex_lock(&buffer->mutex_producer_consumer);
         if (buffer->work_item_todo == NULL && buffer->work_item_done == NULL && buffer->final_man != NULL) {
@@ -223,6 +244,7 @@ void *assembler(void* arg) {
         pthread_mutex_unlock(&buffer->mutex_producer_consumer);
         pthread_mutex_unlock(&buffer->mutex_assembler);
     }
+    return NULL;
 }
 void resize_threads(pthread_t** thread, int *consum_threads_len, int new_len, buffer_t* buffer) {
     if (new_len <= 0) {
@@ -319,7 +341,7 @@ int MAIN(int argc, char** argv) {
     QLineEdit threads;
     threads.setValidator( new QIntValidator(1, 100, &formLayout) );
     formLayout.addRow(QObject::tr("&Threads:"), &threads);
-    threads.setText("20");
+    threads.setText("5");
     QLineEdit split_size;
     split_size.setValidator( new QIntValidator(0, 10000, &formLayout) );
     formLayout.addRow(QObject::tr("&Split size (n^2):"), &split_size);
@@ -433,9 +455,10 @@ int MAIN(int argc, char** argv) {
         pthread_mutex_unlock(&buffer.mutex_producer_consumer);
     });
     
-    int consum_threads_len = threads.text().toInt();
-    pthread_t* consumers = (pthread_t*) calloc(consum_threads_len, sizeof(pthread_t));
-    resize_threads(&consumers, &consum_threads_len, consum_threads_len, &buffer);
+    int curr_thread_n = threads.text().toInt();
+    pthread_t* consumers = (pthread_t*) calloc(curr_thread_n, sizeof(pthread_t));
+    int consum_threads_len;
+    resize_threads(&consumers, &consum_threads_len, curr_thread_n, &buffer);
     
     QObject::connect(&threads, &QLineEdit::textEdited, [&](QString numb) {
         resize_threads(&consumers, &consum_threads_len, numb.toInt(), &buffer);
@@ -456,25 +479,11 @@ int MAIN(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
     
-    pthread_t consumer_t;
-    iret1 = pthread_create(&consumer_t, NULL, consumer, (void*) &buffer);
-    if (iret1) {
-        fprintf(stderr,"Error - pthread_create() return code: %d\n",iret1);
-        exit(EXIT_FAILURE);
-    }
-    
-    
-    pthread_t consumer2_t;
-    iret1 = pthread_create(&consumer2_t, NULL, consumer, (void*) &buffer);
-    if (iret1) {
-        fprintf(stderr,"Error - pthread_create() return code: %d\n",iret1);
-        exit(EXIT_FAILURE);
-    }
-    
     
     int out = app.exec();
-    pthread_join(assembler_t, NULL);
+    resize_threads(&consumers, &consum_threads_len, 0, &buffer);
     pthread_join(producer, NULL);
+    pthread_join(assembler_t, NULL);
     
     return out;
 }
